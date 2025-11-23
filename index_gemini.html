@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartBudget - Simulador de Presupuesto</title>
+    
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome (para iconos) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        /* --- 1. Variables y Estilos Globales --- */
+        :root {
+            --primary: #00B894;
+            --dark: #2D3436;
+            --light-bg: #F5F6FA;
+            --white: #FFFFFF;
+            --alert: #E17055;
+            --info: #0984E3;
+            --border-color: #CED6E0;
+            --text-light: #333;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modo oscuro: variables */
+        body.dark {
+            --primary: #00B894;
+            --dark: #E6EEF3;
+            --light-bg: #071018; /* fondo de la página */
+            --white: #0f1720;    /* fondo de tarjetas */
+            --alert: #E17055;
+            --info: #66a9ff;
+            --border-color: rgba(255,255,255,0.06);
+            --text-light: #E6EEF3;
+            --shadow: 0 6px 24px rgba(0,0,0,0.6);
+        }
+
+        /* Botón alternar tema (pequeño) */
+        .header-theme-btn{
+            height: 36px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            cursor: pointer;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        /* --- 2. Tipografía --- */
+        h1, h2, h3 {
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            font-size: 20px;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        p {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        /* --- 3. Layout y Estructura --- */
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "header"
+                "results"
+                "entry"
+                "visualization"
+                "records"
+                "footer";
+        }
+        
+        /* Layout responsivo para pantallas más grandes */
+        @media (min-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas:
+                    "header header"
+                    "results results"
+                    "entry visualization"
+                    "records records"
+                    "footer footer";
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .container {
+                grid-template-columns: 350px 1fr;
+                grid-template-areas:
+                    "header header"
+                    "results results"
+                    "entry visualization"
+                    "entry records"
+                    "footer footer";
+                gap: 2rem;
+            }
+        }
+
+        header { 
+            grid-area: header; 
+            text-align: center;
+        }
+        
+        .results-panel { grid-area: results; }
+        .data-entry { grid-area: entry; }
+        .visualization-panel { grid-area: visualization; }
+        .records-section { grid-area: records; }
+        footer { grid-area: footer; }
+
+        /* Helper: Card */
+        .card {
+            background-color: var(--white);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        /* --- 4. Paneles Específicos --- */
+
+        /* Panel de Resultados (Totales) */
+        .results-panel {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        @media (min-width: 768px) {
+            .results-panel {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .results-card {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+
+        .results-card h3 {
+            font-size: 16px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+        }
+
+        .results-card .amount {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        #total-income {
+            background-color: #f0fdf4; /* Verde claro */
+            color: var(--primary);
+        }
+
+        #total-expenses {
+            background-color: #fef2f2; /* Rojo claro */
+            color: var(--alert);
+        }
+
+        #balance {
+            background-color: #eff6ff; /* Azul claro */
+            color: var(--info);
+        }
+
+        #balance .amount.negative {
+            color: var(--alert);
+        }
+        
+        #balance .amount.positive {
+            color: var(--primary);
+        }
+
+        /* Panel de Gráficas */
+        .visualization-panel {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        
+        @media (min-width: 768px) {
+            .visualization-panel {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- 5. Formularios y Botones --- */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            font-size: 16px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            height: 40px;
+            padding: 0 15px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 5px rgba(0, 184, 148, 0.3);
+        }
+
+        .btn {
+            height: 40px;
+            padding: 0 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+            width: 100%;
+        }
+        .btn-primary:hover { background-color: #00a884; }
+
+        .btn-edit {
+            background-color: var(--info);
+            color: var(--white);
+        }
+        .btn-edit:hover { background-color: #0874c3; }
+
+        .btn-delete {
+            background-color: var(--alert);
+            color: var(--white);
+        }
+        .btn-delete:hover { background-color: #d16045; }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 18px;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            line-height: 1;
+        }
+        .btn-icon.edit { color: var(--info); }
+        .btn-icon.edit:hover { background-color: #eff6ff; }
+        
+        .btn-icon.delete { color: var(--alert); }
+        .btn-icon.delete:hover { background-color: #fef2f2; }
+
+
+        /* --- 6. Historial de Registros --- */
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-controls .form-group {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+        
+        #records-list {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px; /* Para la barra de scroll */
+        }
+        
+        .record-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background-color: var(--white);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .record-item .icon {
+            font-size: 24px;
+            padding: 10px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .record-item.income .icon {
+            color: var(--primary);
+            background-color: #f0fdf4;
+        }
+        
+        .record-item.expense .icon {
+            color: var(--alert);
+            background-color: #fef2f2;
+        }
+
+        .record-item .details {
+            flex-grow: 1;
+        }
+
+        .record-item .details p {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--dark);
+        }
+        
+        .record-item .details .meta {
+            font-size: 12px;
+            color: var(--text-light);
+            display: flex;
+            gap: 10px;
+        }
+
+        .record-item .amount {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .record-item.income .amount { color: var(--primary); }
+        .record-item.expense .amount { color: var(--alert); }
+
+        .record-item .actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        #no-records {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        /* --- 7. Footer --- */
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        /* --- 8. Notificaciones (Toast) --- */
+        #toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            background-color: var(--dark);
+            color: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: bottom 0.5s ease-in-out;
+            font-size: 16px;
+        }
+        
+        #toast.show {
+            bottom: 30px;
+        }
+        
+        #toast.success { background-color: var(--primary); }
+        #toast.error { background-color: var(--alert); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor Principal de la Aplicación -->
+    <div class="container">
+
+        <!-- 1. Encabezado -->
+        <header style="position:relative;">
+            <h1><i class="fa-solid fa-wallet" style="color: var(--primary);"></i> SmartBudget</h1>
+            <div style="position:absolute; right:10px; top:10px;">
+                <button id="theme-toggle" class="header-theme-btn" aria-label="Alternar tema">🌙</button>
+            </div>
+            <p class="subtitle">Administra tus finanzas fácilmente</p>
+        </header>
+
+        <!-- 2. Panel de Resultados (Totales) -->
+        <section class="results-panel">
+            <div class="results-card" id="total-income">
+                <h3>Ingresos Totales</h3>
+                <span class="amount" id="income-amount">$0.00</span>
+            </div>
+            <div class="results-card" id="total-expenses">
+                <h3>Gastos Totales</h3>
+                <span class="amount" id="expense-amount">$0.00</span>
+            </div>
+            <div class="results-card" id="balance">
+                <h3>Balance General</h3>
+                <span class="amount" id="balance-amount">$0.00</span>
+            </div>
+        </section>
+
+        <!-- 3. Formulario de Entrada -->
+        <section class="data-entry card">
+            <h2 id="form-title">Agregar Movimiento</h2>
+            <form id="transaction-form">
+                <!-- ID oculto para edición -->
+                <input type="hidden" id="transaction-id">
+                
+                <div class="form-group">
+                    <label for="type">Tipo</label>
+                    <select id="type" required>
+                        <option value="income">Ingreso 💲</option>
+                        <option value="expense">Gasto 💸</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Descripción</label>
+                    <input type="text" id="description" placeholder="Ej: Salario, Cena, Luz" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">Monto</label>
+                    <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">Categoría</label>
+                    <select id="category" required>
+                        <option value="Salario">Salario</option>
+                        <option value="Comida">Comida</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Vivienda">Vivienda</option>
+                        <option value="Entretenimiento">Entretenimiento</option>
+                        <option value="Salud">Salud</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="date">Fecha</label>
+                    <input type="date" id="date" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="form-submit-btn">
+                    <i class="fa-solid fa-plus"></i> Agregar
+                </button>
+            </form>
+        </section>
+
+        <!-- 4. Panel de Visualización (Gráficas) -->
+        <section class="visualization-panel">
+            <div class="card">
+                <h3>Gastos por Categoría</h3>
+                <div class="chart-container">
+                    <canvas id="expensePieChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Evolución Mensual</h3>
+                <div class="chart-container">
+                    <canvas id="evolutionBarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Historial de Registros -->
+        <section class="records-section card">
+            <h2>Historial de Movimientos</h2>
+            <div class="filter-controls">
+                <div class="form-group">
+                    <label for="filter-type">Filtrar por Tipo</label>
+                    <select id="filter-type">
+                        <option value="all">Todos</option>
+                        <option value="income">Ingresos</option>
+                        <option value="expense">Gastos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-category">Filtrar por Categoría</label>
+                    <select id="filter-category">
+                        <option value="all">Todas</option>
+                        <!-- Opciones se llenarán dinámicamente -->
+                    </select>
+                </div>
+            </div>
+            
+            <div id="records-list">
+                <!-- Los registros se insertarán aquí por JS -->
+                <p id="no-records">No hay movimientos registrados.</p>
+            </div>
+        </section>
+
+        <!-- 6. Footer -->
+        <footer>
+            <p>&copy; 2025 SmartBudget. Creado con ❤️ por un desarrollador.</p>
+        </footer>
+        
+        <!-- Toast Notification -->
+        <div id="toast">Mensaje de prueba</div>
+
+    </div> <!-- Fin .container -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 1. Selectores del DOM ---
+            const transactionForm = document.getElementById('transaction-form');
+            const formTitle = document.getElementById('form-title');
+            const formSubmitBtn = document.getElementById('form-submit-btn');
+            const transactionIdInput = document.getElementById('transaction-id');
+            const typeInput = document.getElementById('type');
+            const descriptionInput = document.getElementById('description');
+            const amountInput = document.getElementById('amount');
+            const categoryInput = document.getElementById('category');
+            const dateInput = document.getElementById('date');
+
+            const incomeAmountEl = document.getElementById('income-amount');
+            const expenseAmountEl = document.getElementById('expense-amount');
+            const balanceAmountEl = document.getElementById('balance-amount');
+            
+            const recordsList = document.getElementById('records-list');
+            const noRecordsEl = document.getElementById('no-records');
+            
+            const filterType = document.getElementById('filter-type');
+            const filterCategory = document.getElementById('filter-category');
+            
+            const toast = document.getElementById('toast');
+
+            const pieChartCtx = document.getElementById('expensePieChart').getContext('2d');
+            const barChartCtx = document.getElementById('evolutionBarChart').getContext('2d');
+
+            // --- 2. Estado de la Aplicación ---
+            let transactions = [];
+            let expensePieChart;
+            let evolutionBarChart;
+            let isEditing = false;
+
+            // --- 3. Funciones de Persistencia (LocalStorage) ---
+
+            /**
+             * Carga las transacciones desde LocalStorage.
+             */
+            function loadTransactions() {
+                const storedTransactions = localStorage.getItem('smartbudget_transactions');
+                transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
+            }
+
+            /**
+             * Guarda las transacciones en LocalStorage.
+             */
+            function saveTransactions() {
+                localStorage.setItem('smartbudget_transactions', JSON.stringify(transactions));
+            }
+
+            // --- 4. Funciones Principales (Lógica) ---
+
+            /**
+             * Inicializa la aplicación.
+             */
+            function init() {
+                loadTransactions();
+                setDateToToday();
+                setupEventListeners();
+                updateUI();
+                initializeCharts();
+            }
+
+            /**
+             * Configura los event listeners.
+             */
+            function setupEventListeners() {
+                transactionForm.addEventListener('submit', handleFormSubmit);
+                recordsList.addEventListener('click', handleRecordClick);
+                filterType.addEventListener('change', updateUI);
+                filterCategory.addEventListener('change', updateUI);
+            }
+
+            /**
+             * Maneja el envío del formulario (Agregar o Editar).
+             */
+            function handleFormSubmit(e) {
+                e.preventDefault();
+                
+                const transactionData = {
+                    type: typeInput.value,
+                    description: descriptionInput.value,
+                    amount: parseFloat(amountInput.value),
+                    category: categoryInput.value,
+                    date: dateInput.value,
+                };
+
+                if (isNaN(transactionData.amount) || transactionData.amount <= 0) {
+                    showToast('El monto debe ser un número positivo.', 'error');
+                    return;
+                }
+                
+                if (isEditing) {
+                    // Modo Edición
+                    const id = transactionIdInput.value;
+                    transactions = transactions.map(tx => 
+                        tx.id === id ? { ...transactionData, id: id } : tx
+                    );
+                    showToast('Movimiento actualizado exitosamente.', 'success');
+                    stopEditing();
+                } else {
+                    // Modo Agregar
+                    const newTransaction = {
+                        ...transactionData,
+                        id: generateId()
+                    };
+                    transactions.push(newTransaction);
+                    showToast('Movimiento agregado exitosamente.', 'success');
+                }
+                
+                saveTransactions();
+                updateUI();
+                resetForm();
+            }
+
+            /**
+             * Maneja los clics en la lista de registros (Editar o Eliminar).
+             */
+            function handleRecordClick(e) {
+                const editBtn = e.target.closest('.btn-icon.edit');
+                const deleteBtn = e.target.closest('.btn-icon.delete');
+                
+                if (editBtn) {
+                    const id = editBtn.dataset.id;
+                    startEditing(id);
+                } else if (deleteBtn) {
+                    const id = deleteBtn.dataset.id;
+                    deleteTransaction(id);
+                }
+            }
+
+            /**
+             * Inicia el modo de edición para una transacción.
+             */
+            function startEditing(id) {
+                const tx = transactions.find(tx => tx.id === id);
+                if (!tx) return;
+                
+                isEditing = true;
+                transactionIdInput.value = tx.id;
+                typeInput.value = tx.type;
+                descriptionInput.value = tx.description;
+                amountInput.value = tx.amount;
+                categoryInput.value = tx.category;
+                dateInput.value = tx.date;
+                
+                formTitle.textContent = 'Editar Movimiento';
+                formSubmitBtn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar Cambios';
+                formSubmitBtn.classList.remove('btn-primary');
+                formSubmitBtn.classList.add('btn-edit');
+                
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                descriptionInput.focus();
+            }
+
+            /**
+             * Detiene el modo de edición y resetea el formulario.
+             */
+            function stopEditing() {
+                isEditing = false;
+                formTitle.textContent = 'Agregar Movimiento';
+                formSubmitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Agregar';
+                formSubmitBtn.classList.remove('btn-edit');
+                formSubmitBtn.classList.add('btn-primary');
+                resetForm();
+            }
+
+            /**
+             * Elimina una transacción.
+             */
+            function deleteTransaction(id) {
+                if (confirm('¿Estás seguro de que deseas eliminar este movimiento?')) {
+                    transactions = transactions.filter(tx => tx.id !== id);
+                    saveTransactions();
+                    updateUI();
+                    showToast('Movimiento eliminado.', 'success');
+                    if (isEditing && transactionIdInput.value === id) {
+                        stopEditing();
+                    }
+                }
+            }
+
+            // --- 5. Funciones de Renderizado y UI ---
+
+            /**
+             * Función maestra para actualizar toda la UI.
+             */
+            function updateUI() {
+                updateTotals();
+                populateCategoryFilter();
+                renderRecords();
+                updateCharts();
+            }
+
+            /**
+             * Actualiza los totales (Ingresos, Gastos, Balance).
+             */
+            function updateTotals() {
+                const totalIncome = transactions
+                    .filter(tx => tx.type === 'income')
+                    .reduce((sum, tx) => sum + tx.amount, 0);
+                    
+                const totalExpenses = transactions
+                    .filter(tx => tx.type === 'expense')
+                    .reduce((sum, tx) => sum + tx.amount, 0);
+                    
+                const balance = totalIncome - totalExpenses;
+                
+                incomeAmountEl.textContent = formatCurrency(totalIncome);
+                expenseAmountEl.textContent = formatCurrency(totalExpenses);
+                balanceAmountEl.textContent = formatCurrency(balance);
+                
+                balanceAmountEl.classList.toggle('negative', balance < 0);
+                balanceAmountEl.classList.toggle('positive', balance >= 0);
+            }
+
+            /**
+             * Renderiza la lista de registros filtrados.
+             */
+            function renderRecords() {
+                recordsList.innerHTML = ''; // Limpiar lista
+                
+                const filtered = getFilteredTransactions();
+                
+                if (filtered.length === 0) {
+                    noRecordsEl.style.display = 'block';
+                    return;
+                }
+                
+                noRecordsEl.style.display = 'none';
+                
+                // Ordenar por fecha (más reciente primero)
+                filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                filtered.forEach(tx => {
+                    const recordEl = document.createElement('div');
+                    recordEl.className = `record-item ${tx.type}`;
+                    
+                    const isIncome = tx.type === 'income';
+                    const icon = isIncome ? 'fa-solid fa-circle-dollar-to-slot' : 'fa-solid fa-money-bill-wave';
+                    const sign = isIncome ? '+' : '-';
+                    
+                    recordEl.innerHTML = `
+                        <div class="icon">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div class="details">
+                            <p>${tx.description}</p>
+                            <span class="meta">
+                                <span><i class="fa-solid fa-tag"></i> ${tx.category}</span>
+                                <span><i class="fa-solid fa-calendar-days"></i> ${formatDate(tx.date)}</span>
+                            </span>
+                        </div>
+                        <span class="amount">${sign}${formatCurrency(tx.amount)}</span>
+                        <div class="actions">
+                            <button class="btn-icon edit" data-id="${tx.id}" title="Editar">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn-icon delete" data-id="${tx.id}" title="Eliminar">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                    recordsList.appendChild(recordEl);
+                });
+            }
+
+            /**
+             * Obtiene las transacciones basadas en los filtros seleccionados.
+             */
+            function getFilteredTransactions() {
+                const type = filterType.value;
+                const category = filterCategory.value;
+                
+                return transactions.filter(tx => {
+                    const typeMatch = (type === 'all') || (tx.type === type);
+                    const categoryMatch = (category === 'all') || (tx.category === category);
+                    return typeMatch && categoryMatch;
+                });
+            }
+
+            /**
+             * Rellena el filtro de categorías dinámicamente.
+             */
+            function populateCategoryFilter() {
+                const currentSelection = filterCategory.value;
+                const categories = ['all', ...new Set(transactions.map(tx => tx.category))];
+                
+                filterCategory.innerHTML = ''; // Limpiar
+                
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = (cat === 'all') ? 'Todas' : cat;
+                    filterCategory.appendChild(option);
+                });
+                
+                // Restaurar selección si aún existe
+                filterCategory.value = categories.includes(currentSelection) ? currentSelection : 'all';
+            }
+
+            /**
+             * Muestra una notificación (toast).
+             */
+            function showToast(message, type = 'success') {
+                toast.textContent = message;
+                toast.className = 'show';
+                toast.classList.add(type); // 'success' o 'error'
+                
+                setTimeout(() => {
+                    toast.className = toast.className.replace('show', '');
+                }, 3000);
+            }
+
+            // --- 6. Funciones de Gráficas (Chart.js) ---
+
+            /**
+             * Inicializa las gráficas (se llama una vez).
+             */
+            function initializeCharts() {
+                // Determinar colores según tema actual
+                const bodyStyles = getComputedStyle(document.body);
+                const textColor = bodyStyles.color || '#333';
+                const borderColor = bodyStyles.getPropertyValue('--border-color') || '#CED6E0';
+
+                // Determinar paletas según tema
+                const isDark = document.body.classList.contains('dark');
+                const piePalette = isDark
+                    ? ['#FF8FA3', '#7BE3BF', '#7FB7FF', '#A08CFF', '#FFE59D', '#FFB39A', '#BFC6CC', '#FF9AD6']
+                    : ['#E17055', '#00B894', '#0984E3', '#6C5CE7', '#FDCB6E', '#FF7675', '#2D3436', '#E84393'];
+
+                // Gráfica de Pastel
+                expensePieChart = new Chart(pieChartCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: piePalette,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: textColor }
+                            }
+                        }
+                    }
+                });
+                
+                // Gráfica de Barras
+                const barIncomeColor = isDark ? 'rgba(0, 184, 148, 0.9)' : 'rgba(0, 184, 148, 0.7)';
+                const barExpenseColor = isDark ? 'rgba(225, 112, 85, 0.9)' : 'rgba(225, 112, 85, 0.7)';
+
+                evolutionBarChart = new Chart(barChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Sin datos'],
+                        datasets: [
+                            {
+                                label: 'Ingresos',
+                                data: [0],
+                                backgroundColor: barIncomeColor,
+                                borderColor: 'rgba(0, 184, 148, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Gastos',
+                                data: [0],
+                                backgroundColor: barExpenseColor,
+                                borderColor: 'rgba(225, 112, 85, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: undefined,
+                        scales: {
+                            x: { ticks: { color: textColor }, grid: { color: 'transparent' } },
+                            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: borderColor } }
+                        },
+                        plugins: { legend: { labels: { color: textColor } } }
+                    }
+                });
+
+                // Escuchar cambios de tema y actualizar estilos de las gráficas
+                document.addEventListener('theme-change', () => {
+                    const s = getComputedStyle(document.body);
+                    const tc = s.color || '#333';
+                    const gc = s.getPropertyValue('--border-color') || '#CED6E0';
+                    if (expensePieChart) {
+                        expensePieChart.options.plugins.legend.labels.color = tc;
+                        expensePieChart.options.plugins.tooltip = expensePieChart.options.plugins.tooltip || {};
+                        expensePieChart.options.plugins.tooltip.backgroundColor = document.body.classList.contains('dark') ? '#111518' : '#fff';
+                        expensePieChart.options.plugins.tooltip.titleColor = tc;
+                        expensePieChart.options.plugins.tooltip.bodyColor = tc;
+                        expensePieChart.update();
+                    }
+                    if (evolutionBarChart) {
+                        evolutionBarChart.options.plugins.legend.labels.color = tc;
+                        if (evolutionBarChart.options.scales) {
+                            evolutionBarChart.options.scales.x.ticks.color = tc;
+                            evolutionBarChart.options.scales.y.ticks.color = tc;
+                            evolutionBarChart.options.scales.y.grid.color = gc;
+                        }
+                        evolutionBarChart.update();
+                    }
+                });
+            }
+            
+            /**
+             * Actualiza los datos de las gráficas.
+             */
+            function updateCharts() {
+                updatePieChart();
+                updateBarChart();
+            }
+
+            /**
+             * Actualiza la gráfica de pastel de gastos.
+             */
+            function updatePieChart() {
+                const expenseCategories = transactions
+                    .filter(tx => tx.type === 'expense')
+                    .reduce((acc, tx) => {
+                        acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
+                        return acc;
+                    }, {});
+                
+                const labels = Object.keys(expenseCategories);
+                const data = Object.values(expenseCategories);
+                
+                expensePieChart.data.labels = labels;
+                expensePieChart.data.datasets[0].data = data;
+                expensePieChart.update();
+            }
+
+            /**
+             * Actualiza la gráfica de barras de evolución mensual.
+             */
+            function updateBarChart() {
+                if (!evolutionBarChart) return;
+                
+                const monthlyData = transactions.reduce((acc, tx) => {
+                    const month = tx.date.substring(0, 7); // 'YYYY-MM'
+                    if (!acc[month]) {
+                        acc[month] = { income: 0, expense: 0 };
+                    }
+                    acc[month][tx.type] += tx.amount;
+                    return acc;
+                }, {});
+
+                const sortedMonths = Object.keys(monthlyData).sort();
+                
+                if (sortedMonths.length === 0) {
+                    // Sin datos: mostrar gráfica vacía
+                    evolutionBarChart.data.labels = ['Sin datos'];
+                    evolutionBarChart.data.datasets[0].data = [0];
+                    evolutionBarChart.data.datasets[1].data = [0];
+                } else {
+                    const labels = sortedMonths.map(month => {
+                        const [year, m] = month.split('-');
+                        return new Date(year, m - 1).toLocaleString('es-ES', { month: 'short', year: '2-digit' });
+                    });
+                    const incomeData = sortedMonths.map(month => monthlyData[month].income);
+                    const expenseData = sortedMonths.map(month => monthlyData[month].expense);
+                    
+                    evolutionBarChart.data.labels = labels;
+                    evolutionBarChart.data.datasets[0].data = incomeData;
+                    evolutionBarChart.data.datasets[1].data = expenseData;
+                }
+                
+                evolutionBarChart.update();
+            }
+
+
+            // --- 7. Funciones Utilitarias ---
+
+            /**
+             * Resetea el formulario a su estado inicial.
+             */
+            function resetForm() {
+                transactionForm.reset();
+                transactionIdInput.value = '';
+                setDateToToday();
+            }
+
+            /**
+             * Establece la fecha del formulario a hoy.
+             */
+            function setDateToToday() {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+
+            /**
+             * Genera un ID único simple.
+             */
+            function generateId() {
+                return '_' + Math.random().toString(36).substr(2, 9);
+            }
+            
+            /**
+             * Formatea un número como moneda (MXN).
+             */
+            function formatCurrency(amount) {
+                return new Intl.NumberFormat('es-MX', {
+                    style: 'currency',
+                    currency: 'MXN'
+                }).format(amount);
+            }
+            
+            /**
+             * Formatea una fecha 'YYYY-MM-DD' a un formato legible.
+             */
+            function formatDate(dateString) {
+                const date = new Date(dateString + 'T00:00:00'); // Corregir desfase de zona horaria
+                return date.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+
+            // --- 8. Iniciar la Aplicación ---
+            init();
+
+        });
+    </script>
+    <script src="darkmode.js"></script>
+
+</body>
+</html>

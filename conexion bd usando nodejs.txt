@@ -1,0 +1,19 @@
+# 📂 1. Ir a la carpeta del proyecto
+cd "C:\Users\ericc\OneDrive\Escritorio\practica_8"
+
+# 📦 2. Inicializar el proyecto Node.js (crea package.json con configuración base)
+npm init -y
+
+# ⚙️ 3. Instalar dependencias necesarias:
+# express → framework de servidor web
+# mysql2 → conector MySQL para Node.js
+# bcrypt → encriptación de contraseñas (si se usa login)
+# cors → habilita peticiones desde el frontend
+npm install express mysql2 bcrypt cors
+
+# 🧠 4.. Ejecutar el servidor Node.js
+node server.js
+
+# 🟢 Si todo está bien, deberías ver:
+# Servidor corriendo en http://localhost:3000
+# ✅ Conectado a MySQL SmartBudget

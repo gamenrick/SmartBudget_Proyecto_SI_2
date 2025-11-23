@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔑 SmartBudget Login</title>
+
+  <!-- FontAwesome -->
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- CSS externo -->
+  <link rel="stylesheet" href="stylelogin.css">
+  
+  <style>
+    /* Settings Menu */
+    .settings-menu {
+        position: relative;
+    }
+
+    .settings-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 6px 10px;
+        height: 40px;
+        cursor: pointer;
+        font-size: 20px;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .settings-btn:hover {
+        background-color: var(--light-color);
+    }
+
+    .settings-dropdown {
+        position: absolute;
+        top: 50px;
+        right: 0;
+        background-color: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        width: 280px;
+        padding: 20px;
+        z-index: 2000;
+        display: none;
+    }
+
+    .settings-dropdown.show {
+        display: block;
+    }
+
+    .settings-dropdown h3 {
+        font-size: calc(1.125rem * var(--font-size-scale));
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: var(--dark-color);
+    }
+
+    .settings-section {
+        margin-bottom: 20px;
+    }
+
+    .settings-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .settings-section label {
+        font-size: calc(0.875rem * var(--font-size-scale));
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: var(--text-color);
+        display: block;
+    }
+
+    .settings-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .toggle-switch {
+        position: relative;
+        width: 50px;
+        height: 26px;
+        background-color: var(--border-color);
+        border-radius: 13px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .toggle-switch.active {
+        background-color: var(--primary-color);
+    }
+
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        background-color: var(--white);
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: var(--transition);
+    }
+
+    .toggle-switch.active::after {
+        left: 26px;
+    }
+
+    .size-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .size-btn {
+        background-color: var(--light-color);
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: calc(0.85rem * var(--font-size-scale));
+        font-weight: 500;
+        transition: var(--transition);
+        min-width: 35px;
+    }
+
+    .size-btn:hover {
+        background-color: var(--primary-color);
+        color: var(--white);
+        border-color: var(--primary-color);
+    }
+
+    .size-btn.active {
+        background-color: var(--primary-color);
+        color: var(--white);
+        border-color: var(--primary-color);
+    }
+
+    .size-display {
+        font-size: calc(0.75rem * var(--font-size-scale));
+        color: var(--text-color);
+        text-align: center;
+        margin-top: 8px;
+        font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container" style="position:relative;">
+    <div style="position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; align-items: center;">
+      <div class="settings-menu">
+        <button class="settings-btn" id="settings-toggle" aria-label="Configuraciones">⚙️</button>
+        <div class="settings-dropdown" id="settings-dropdown">
+          <h3>⚙️ Configuraciones</h3>
+          
+          <div class="settings-section">
+            <label>Tema</label>
+            <div class="settings-toggle">
+              <span style="font-size: 18px;">🌙</span>
+              <div class="toggle-switch" id="theme-toggle-switch"></div>
+              <span style="font-size: 18px;">☀️</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <label>Tamaño de Letras</label>
+            <div class="size-controls">
+              <button class="size-btn" id="size-small" title="Pequeño">A-</button>
+              <button class="size-btn active" id="size-medium" title="Mediano">A</button>
+              <button class="size-btn" id="size-large" title="Grande">A+</button>
+            </div>
+            <div class="size-display" id="size-display">100%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1>💰 SmartBudget</h1>
+    <p>Accede a tu cuenta o regístrate</p>
+
+    <div class="auth-tabs">
+      <button id="login-tab" class="active" onclick="switchForm('login')">Iniciar Sesión</button>
+      <button id="register-tab" onclick="switchForm('register')">Registrarse</button>
+    </div>
+
+    <!-- LOGIN -->
+    <form id="login-form" class="auth-form active">
+      <input type="email" id="login-user" placeholder="Correo electrónico" required autocomplete="email">
+      <input type="password" id="login-pass" placeholder="Clave" required autocomplete="current-password">
+      <button type="submit" class="submit">Entrar</button>
+      <span class="recover-link" onclick="openModal()">¿Olvidaste tu contraseña?</span>
+    </form>
+
+    <!-- REGISTER -->
+    <form id="register-form" class="auth-form">
+      <input type="text" id="reg-user" placeholder="Usuario" required autocomplete="username">
+      <input type="email" id="reg-email" placeholder="Correo electrónico" required autocomplete="email">
+      <input type="password" id="reg-pass" placeholder="Clave" required autocomplete="new-password">
+      <input type="password" id="reg-pass2" placeholder="Confirmar clave" required autocomplete="new-password">
+      <button type="submit" class="submit">Crear cuenta</button>
+    </form>
+
+    <footer>
+      SmartBudget © 2025
+    </footer>
+  </div>
+
+  <!-- MODAL DE RECUPERACIÓN -->
+  <div class="modal" id="recoverModal">
+    <div class="modal-content">
+      <h3>Recuperar contraseña</h3>
+      <p>Ingresa tu correo y te enviaremos un enlace para restablecer tu clave.</p>
+      <input type="email" id="recover-email" placeholder="Correo electrónico" autocomplete="email">
+      <button onclick="recover()">Enviar enlace</button>
+      <button class="close-btn" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Tu script principal -->
+  <script src="darkmode.js"></script>
+  <script src="scriptlogin.js"></script>
+
+</body>
+</html>
