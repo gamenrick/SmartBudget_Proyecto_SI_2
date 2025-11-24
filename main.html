@@ -1118,595 +1118,361 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // Clase para manejar las transacciones
-        class TransactionManager {
-            constructor() {
-                this.transactions = this.loadTransactions();
-                this.nextId = this.getNextId();
-                this.init();
-            }
+class TransactionManager {
+    constructor() {
+        // Usuario logueado
+        window.currentUserId = parseInt(localStorage.getItem('currentUserId'));
+        console.log('🔹 currentUserId desde localStorage:', window.currentUserId);
 
-            // Inicializar la aplicación
-            init() {
-                this.setupEventListeners();
-                this.updateUI();
-                this.setDefaultDates();
-                // Escuchar cambios de tema para actualizar colores de las gráficas
-                window.addEventListener('themeChange', () => {
-                    this.updateCharts();
-                });
-            }
+        this.transactions = [];
+        this.nextId = 1;
+        this.init();
+    }
 
-            // Configurar event listeners
-            setupEventListeners() {
-                // Formularios
-                document.getElementById('income-form').addEventListener('submit', (e) => this.handleFormSubmit(e, 'income'));
-                document.getElementById('expense-form').addEventListener('submit', (e) => this.handleFormSubmit(e, 'expense'));
-                
-                // Filtros
-                document.getElementById('filter-type').addEventListener('change', () => this.updateUI());
-                document.getElementById('filter-category').addEventListener('change', () => this.updateUI());
-                document.getElementById('filter-date').addEventListener('change', () => this.updateUI());
-                
-                // Modal
-                document.getElementById('close-modal').addEventListener('click', () => this.closeModal());
-                document.getElementById('edit-form').addEventListener('submit', (e) => this.handleEditSubmit(e));
-                
-                // Cerrar modal al hacer clic fuera
-                document.getElementById('edit-modal').addEventListener('click', (e) => {
-                    if (e.target.id === 'edit-modal') this.closeModal();
-                });
-            }
+    async init() {
+        console.log('⚡ Inicializando TransactionManager...');
+        this.setupEventListeners();
+        this.setDefaultDates();
+        await this.loadTransactions();
+        this.updateUI();
 
-            // Establecer fechas por defecto
-            setDefaultDates() {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('income-date').value = today;
-                document.getElementById('expense-date').value = today;
-                
-                const currentMonth = new Date().toISOString().substring(0, 7);
-                document.getElementById('filter-date').value = currentMonth;
-            }
+        // Refrescar gráficas al cambiar tema
+        window.addEventListener('themeChange', () => this.updateCharts());
+    }
 
-            // Manejar envío de formularios
-            handleFormSubmit(e, type) {
-                e.preventDefault();
-                
-                const amount = parseFloat(document.getElementById(`${type}-amount`).value);
-                const category = document.getElementById(`${type}-category`).value;
-                const description = document.getElementById(`${type}-description`).value;
-                const date = document.getElementById(`${type}-date`).value;
-                
-                if (!amount || !category || !date) {
-                    this.showToast('Por favor, completa todos los campos obligatorios', 'error');
-                    return;
-                }
-                
-                const transaction = {
-                    id: this.nextId++,
-                    type,
-                    amount,
-                    category,
-                    description,
-                    date
-                };
-                
-                this.addTransaction(transaction);
-                this.resetForm(`${type}-form`);
-                this.showToast(`${type === 'income' ? 'Ingreso' : 'Gasto'} agregado correctamente`);
-            }
+    setupEventListeners() {
+        document.getElementById('income-form').addEventListener('submit', e => this.handleFormSubmit(e, 'income'));
+        document.getElementById('expense-form').addEventListener('submit', e => this.handleFormSubmit(e, 'expense'));
+        document.getElementById('filter-type').addEventListener('change', () => this.updateUI());
+        document.getElementById('filter-category').addEventListener('change', () => this.updateUI());
+        document.getElementById('filter-date').addEventListener('change', () => this.updateUI());
+        document.getElementById('close-modal').addEventListener('click', () => this.closeModal());
+        document.getElementById('edit-form').addEventListener('submit', e => this.handleEditSubmit(e));
+        document.getElementById('edit-modal').addEventListener('click', e => {
+            if (e.target.id === 'edit-modal') this.closeModal();
+        });
+        console.log('✅ Event listeners configurados');
+    }
 
-            // Manejar envío del formulario de edición
-            handleEditSubmit(e) {
-                e.preventDefault();
-                
-                const id = parseInt(document.getElementById('edit-id').value);
-                const type = document.getElementById('edit-type').value;
-                const amount = parseFloat(document.getElementById('edit-amount').value);
-                const category = document.getElementById('edit-category').value;
-                const description = document.getElementById('edit-description').value;
-                const date = document.getElementById('edit-date').value;
-                
-                if (!amount || !category || !date) {
-                    this.showToast('Por favor, completa todos los campos obligatorios', 'error');
-                    return;
-                }
-                
-                const transaction = {
-                    id,
-                    type,
-                    amount,
-                    category,
-                    description,
-                    date
-                };
-                
-                this.updateTransaction(transaction);
-                this.closeModal();
-                this.showToast('Transacción actualizada correctamente');
-            }
+    setDefaultDates() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('income-date').value = today;
+        document.getElementById('expense-date').value = today;
+        document.getElementById('filter-date').value = new Date().toISOString().substring(0, 7);
+    }
 
-            // Agregar transacción
-            addTransaction(transaction) {
-                this.transactions.push(transaction);
-                this.saveTransactions();
-                this.updateUI();
-            }
+    async loadTransactions() {
+        if (!window.currentUserId) {
+            console.warn('⚠️ No hay usuario logueado, no se cargarán transacciones');
+            return;
+        }
+        try {
+            console.log(`⏳ Cargando transacciones para userId: ${window.currentUserId}...`);
+            const res = await fetch(`http://localhost:3000/transactions/${window.currentUserId}`);
+            if (!res.ok) throw new Error('Error al cargar transacciones');
 
-            // Actualizar transacción
-            updateTransaction(updatedTransaction) {
-                const index = this.transactions.findIndex(t => t.id === updatedTransaction.id);
-                if (index !== -1) {
-                    this.transactions[index] = updatedTransaction;
-                    this.saveTransactions();
-                    this.updateUI();
-                }
-            }
+            // Convertir amount a número
+            this.transactions = (await res.json()).map(t => ({
+                ...t,
+                amount: Number(t.amount)
+            }));
 
-            // Eliminar transacción
-            deleteTransaction(id) {
-                if (confirm('¿Estás seguro de que quieres eliminar esta transacción?')) {
-                    this.transactions = this.transactions.filter(t => t.id !== id);
-                    this.saveTransactions();
-                    this.updateUI();
-                    this.showToast('Transacción eliminada correctamente');
-                }
-            }
+            console.log('🔹 Transacciones cargadas:', this.transactions);
+            this.nextId = this.transactions.length ? Math.max(...this.transactions.map(t => t.id)) + 1 : 1;
+        } catch (err) {
+            console.error('❌ Error cargando transacciones:', err);
+            this.transactions = [];
+        }
+    }
 
-            // Abrir modal para editar
-            openEditModal(id) {
-                const transaction = this.transactions.find(t => t.id === id);
-                if (!transaction) return;
-                
-                document.getElementById('edit-id').value = transaction.id;
-                document.getElementById('edit-type').value = transaction.type;
-                document.getElementById('edit-amount').value = transaction.amount;
-                document.getElementById('edit-description').value = transaction.description;
-                document.getElementById('edit-date').value = transaction.date;
-                
-                // Cargar categorías según el tipo
-                const categorySelect = document.getElementById('edit-category');
-                categorySelect.innerHTML = '';
-                
-                const categories = transaction.type === 'income' 
-                    ? ['Salario', 'Freelance', 'Inversiones', 'Regalos', 'Otros']
-                    : ['Alimentación', 'Transporte', 'Vivienda', 'Entretenimiento', 'Salud', 'Educación', 'Otros'];
-                
-                categories.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat;
-                    option.textContent = cat;
-                    if (cat === transaction.category) option.selected = true;
-                    categorySelect.appendChild(option);
-                });
-                
-                document.getElementById('modal-title').textContent = `Editar ${transaction.type === 'income' ? 'Ingreso' : 'Gasto'}`;
-                document.getElementById('edit-modal').style.display = 'flex';
-            }
 
-            // Cerrar modal
-            closeModal() {
-                document.getElementById('edit-modal').style.display = 'none';
-            }
+    async handleFormSubmit(e, type) {
+        e.preventDefault();
+        const amount = parseFloat(document.getElementById(`${type}-amount`).value);
+        const category = document.getElementById(`${type}-category`).value;
+        const description = document.getElementById(`${type}-description`).value;
+        const date = document.getElementById(`${type}-date`).value;
 
-            // Obtener transacciones filtradas
-            getFilteredTransactions() {
-                const typeFilter = document.getElementById('filter-type').value;
-                const categoryFilter = document.getElementById('filter-category').value;
-                const dateFilter = document.getElementById('filter-date').value;
-                
-                return this.transactions.filter(transaction => {
-                    // Filtrar por tipo
-                    if (typeFilter !== 'all' && transaction.type !== typeFilter) return false;
-                    
-                    // Filtrar por categoría
-                    if (categoryFilter !== 'all' && transaction.category !== categoryFilter) return false;
-                    
-                    // Filtrar por fecha
-                    if (dateFilter && !transaction.date.startsWith(dateFilter)) return false;
-                    
-                    return true;
-                });
-            }
-
-            // Actualizar la interfaz de usuario
-            updateUI() {
-                this.updateSummary();
-                this.updateTransactionsTable();
-                this.updateCharts();
-                this.updateCategoryFilter();
-            }
-
-            // Actualizar resumen
-            updateSummary() {
-                const totalIncome = this.transactions
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                const totalExpenses = this.transactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                const balance = totalIncome - totalExpenses;
-                
-                document.getElementById('total-income').textContent = `$${totalIncome.toFixed(2)}`;
-                document.getElementById('total-expenses').textContent = `$${totalExpenses.toFixed(2)}`;
-                
-                const balanceElement = document.getElementById('balance');
-                balanceElement.textContent = `$${balance.toFixed(2)}`;
-                balanceElement.className = `summary-amount ${balance >= 0 ? 'balance-positive' : 'balance-negative'}`;
-            }
-
-            // Actualizar tabla de transacciones
-            updateTransactionsTable() {
-                const transactionsBody = document.getElementById('transactions-body');
-                const filteredTransactions = this.getFilteredTransactions();
-                
-                transactionsBody.innerHTML = '';
-                
-                if (filteredTransactions.length === 0) {
-                    transactionsBody.innerHTML = `
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 20px;">
-                                No hay transacciones que coincidan con los filtros seleccionados
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                filteredTransactions.forEach(transaction => {
-                    const row = document.createElement('tr');
-                    
-                    row.innerHTML = `
-                        <td>${transaction.type === 'income' ? '💲 Ingreso' : '💸 Gasto'}</td>
-                        <td>${transaction.category}</td>
-                        <td>${transaction.description || '-'}</td>
-                        <td>${this.formatDate(transaction.date)}</td>
-                        <td class="${transaction.type === 'income' ? 'transaction-income' : 'transaction-expense'}">
-                            $${transaction.amount.toFixed(2)}
-                        </td>
-                        <td>
-                            <button class="btn-icon btn-edit" data-id="${transaction.id}">⚙️</button>
-                            <button class="btn-icon btn-delete" data-id="${transaction.id}">🗑️</button>
-                        </td>
-                    `;
-                    
-                    transactionsBody.appendChild(row);
-                });
-                
-                // Agregar event listeners a los botones
-                document.querySelectorAll('.btn-edit').forEach(btn => {
-                    btn.addEventListener('click', () => this.openEditModal(parseInt(btn.dataset.id)));
-                });
-                
-                document.querySelectorAll('.btn-delete').forEach(btn => {
-                    btn.addEventListener('click', () => this.deleteTransaction(parseInt(btn.dataset.id)));
-                });
-            }
-
-            // Actualizar gráficas
-            updateCharts() {
-                this.updateExpensesChart();
-                this.updateMonthlyChart();
-            }
-
-            // Actualizar gráfica de gastos
-            updateExpensesChart() {
-                const ctx = document.getElementById('expenses-chart').getContext('2d');
-                
-                // Obtener gastos por categoría
-                const expensesByCategory = {};
-                this.transactions
-                    .filter(t => t.type === 'expense')
-                    .forEach(t => {
-                        expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
-                    });
-                
-                const categories = Object.keys(expensesByCategory);
-                const amounts = Object.values(expensesByCategory);
-                
-                // Colores para las categorías (elige paleta según tema)
-                const isDark = document.body.classList.contains('dark');
-                const backgroundColors = isDark
-                    ? ['#FF8FA3', '#7BE3BF', '#7FB7FF', '#A08CFF', '#FFE59D', '#FFB39A', '#BFC6CC', '#FF9AD6']
-                    : ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7CFFB2'];
-                
-                // Destruir gráfica anterior si existe
-                if (this.expensesChart) {
-                    this.expensesChart.destroy();
-                }
-
-                // Colores base
-                const bgColors = backgroundColors.slice(0, categories.length);
-
-                // Determinar colores de texto según tema
-                const styles = getComputedStyle(document.body);
-                const textColor = styles.getPropertyValue('--text-color').trim() || (isDark ? '#E6EEF3' : '#333');
-                const tooltipBg = isDark ? '#0b1115' : '#fff';
-                const tooltipTitleColor = isDark ? '#E6EEF3' : '#111';
-
-                // Crear nueva gráfica con adaptación de colores y tooltips
-                this.expensesChart = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: categories,
-                        datasets: [{
-                            data: amounts,
-                            backgroundColor: bgColors,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: { color: textColor }
-                            },
-                            tooltip: {
-                                backgroundColor: tooltipBg,
-                                titleColor: tooltipTitleColor,
-                                bodyColor: textColor
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Actualizar gráfica mensual
-            updateMonthlyChart() {
-                const canvasElement = document.getElementById('monthly-chart');
-                if (!canvasElement) {
-                    console.error('Canvas "monthly-chart" no encontrado');
-                    return;
-                }
-
-                const ctx = canvasElement.getContext('2d');
-                
-                // Obtener ingresos y gastos por mes
-                const monthlyData = {};
-                
-                this.transactions.forEach(t => {
-                    const month = t.date.substring(0, 7); // Formato YYYY-MM
-                    if (!monthlyData[month]) {
-                        monthlyData[month] = { income: 0, expenses: 0 };
-                    }
-                    
-                    if (t.type === 'income') {
-                        monthlyData[month].income += t.amount;
-                    } else {
-                        monthlyData[month].expenses += t.amount;
-                    }
-                });
-                
-                const months = Object.keys(monthlyData).sort();
-                const incomeData = months.map(month => monthlyData[month].income);
-                const expensesData = months.map(month => monthlyData[month].expenses);
-                
-                // Destruir gráfica anterior si existe
-                if (this.monthlyChart) {
-                    this.monthlyChart.destroy();
-                }
-
-                // Si no hay datos, mostrar mensaje y no crear gráfica
-                if (months.length === 0) {
-                    console.warn('No hay datos de transacciones para mostrar en la gráfica mensual');
-                    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-color').trim() || '#333';
-                    ctx.font = '16px Poppins';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Agrega transacciones para ver la evolución mensual', canvasElement.width / 2, canvasElement.height / 2);
-                    return;
-                }
-
-                // Determinar colores según el tema actual (CSS variables)
-                const styles2 = getComputedStyle(document.body);
-                const textColor2 = styles2.getPropertyValue('--text-color').trim() || (document.body.classList.contains('dark') ? '#E6EEF3' : '#333');
-                const gridColor = styles2.getPropertyValue('--border-color').trim() || (document.body.classList.contains('dark') ? 'rgba(255,255,255,0.06)' : '#CED6E0');
-
-                // Crear nueva gráfica con colores que funcionen en modo oscuro
-                this.monthlyChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: months.map(month => this.formatMonth(month)),
-                        datasets: [
-                            {
-                                label: 'Ingresos',
-                                data: incomeData,
-                                backgroundColor: document.body.classList.contains('dark') ? 'rgba(0, 184, 148, 0.9)' : 'rgba(0, 184, 148, 0.7)',
-                                borderColor: 'rgba(0, 184, 148, 1)',
-                                borderWidth: 1
-                            },
-                            {
-                                label: 'Gastos',
-                                data: expensesData,
-                                backgroundColor: document.body.classList.contains('dark') ? 'rgba(225, 112, 85, 0.9)' : 'rgba(225, 112, 85, 0.7)',
-                                borderColor: 'rgba(225, 112, 85, 1)',
-                                borderWidth: 1
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                ticks: { color: textColor2 },
-                                grid: { color: 'transparent' }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { color: textColor2 },
-                                grid: { color: gridColor }
-                            }
-                        },
-                        plugins: {
-                            legend: { labels: { color: textColor2 } }
-                        }
-                    }
-                });
-            }
-
-            // Actualizar filtro de categorías
-            updateCategoryFilter() {
-                const categoryFilter = document.getElementById('filter-category');
-                const currentValue = categoryFilter.value;
-                
-                // Obtener todas las categorías únicas
-                const categories = [...new Set(this.transactions.map(t => t.category))].sort();
-                
-                // Actualizar opciones
-                categoryFilter.innerHTML = '<option value="all">Todas</option>';
-                categories.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat;
-                    option.textContent = cat;
-                    if (cat === currentValue) option.selected = true;
-                    categoryFilter.appendChild(option);
-                });
-            }
-
-            // Formatear fecha
-            formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('es-ES');
-            }
-
-            // Formatear mes
-            formatMonth(monthString) {
-                const [year, month] = monthString.split('-');
-                const monthNames = [
-                    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-                ];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-            }
-
-            // Resetear formulario
-            resetForm(formId) {
-                document.getElementById(formId).reset();
-                this.setDefaultDates();
-            }
-
-            // Mostrar toast
-            showToast(message, type = 'success') {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-                
-                setTimeout(() => {
-                    toast.classList.add('show');
-                }, 100);
-                
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
-            }
-
-            // Cargar transacciones desde localStorage
-            loadTransactions() {
-                const stored = localStorage.getItem('smartBudgetTransactions');
-                return stored ? JSON.parse(stored) : [];
-            }
-
-            // Guardar transacciones en localStorage
-            saveTransactions() {
-                localStorage.setItem('smartBudgetTransactions', JSON.stringify(this.transactions));
-                localStorage.setItem('smartBudgetNextId', this.nextId.toString());
-            }
-
-            // Obtener siguiente ID
-            getNextId() {
-                const stored = localStorage.getItem('smartBudgetNextId');
-                return stored ? parseInt(stored) : 1;
-            }
+        if (!amount || !category || !date) {
+            this.showToast('Completa todos los campos obligatorios', 'error');
+            return;
         }
 
-        // Sidebar Navigation
-        class SidebarManager {
-            constructor() {
-                this.sidebar = document.getElementById('sidebar');
-                this.toggleButton = document.getElementById('toggle-sidebar');
-                this.menuItems = document.querySelectorAll('.menu-item');
-                this.sections = document.querySelectorAll('section');
-                this.init();
-            }
+        const transaction = { type, amount, category, description, date, user_id: window.currentUserId };
+        console.log('💾 Enviando nueva transacción:', transaction);
+        await this.addTransaction(transaction);
+        this.resetForm(`${type}-form`);
+        this.showToast(`${type === 'income' ? 'Ingreso' : 'Gasto'} agregado correctamente`);
+    }
 
-            init() {
-                this.setupEventListeners();
-                this.setActiveSection('forms');
-            }
+    async handleEditSubmit(e) {
+        e.preventDefault();
+        const id = parseInt(document.getElementById('edit-id').value);
+        const type = document.getElementById('edit-type').value;
+        const amount = parseFloat(document.getElementById('edit-amount').value);
+        const category = document.getElementById('edit-category').value;
+        const description = document.getElementById('edit-description').value;
+        const date = document.getElementById('edit-date').value;
 
-            setupEventListeners() {
-                // Toggle sidebar
-                this.toggleButton.addEventListener('click', () => {
-                    this.toggleSidebar();
-                });
-
-                // Menu item clicks
-                this.menuItems.forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const section = item.getAttribute('data-section');
-                        this.setActiveSection(section);
-                        this.scrollToSection(section);
-                    });
-                });
-
-                // Close sidebar when clicking outside on mobile
-                document.addEventListener('click', (e) => {
-                    if (window.innerWidth <= 768 && 
-                        !this.sidebar.contains(e.target) && 
-                        !e.target.classList.contains('toggle-sidebar')) {
-                        this.sidebar.classList.add('collapsed');
-                    }
-                });
-            }
-
-            toggleSidebar() {
-                this.sidebar.classList.toggle('collapsed');
-            }
-
-            setActiveSection(section) {
-                // Remove active class from all menu items
-                this.menuItems.forEach(item => {
-                    item.classList.remove('active');
-                });
-
-                // Add active class to clicked menu item
-                const activeItem = document.querySelector(`.menu-item[data-section="${section}"]`);
-                if (activeItem) {
-                    activeItem.classList.add('active');
-                }
-            }
-
-            scrollToSection(section) {
-                const sectionElement = document.getElementById(`${section}-section`);
-                if (sectionElement) {
-                    sectionElement.scrollIntoView({ 
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            }
+        if (!amount || !category || !date) {
+            this.showToast('Completa todos los campos obligatorios', 'error');
+            return;
         }
 
-        // Inicializar la aplicación cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', () => {
-            // Guardar instancia globalmente para que otras utilidades (ej. darkmode) puedan refrescar las gráficas
-            window.transactionManager = new TransactionManager();
-            window.sidebarManager = new SidebarManager();
+        const transaction = { id, type, amount, category, description, date, user_id: window.currentUserId };
+        console.log('✏️ Actualizando transacción:', transaction);
+        await this.updateTransaction(transaction);
+        this.closeModal();
+        this.showToast('Transacción actualizada correctamente');
+    }
+
+    async addTransaction(transaction) {
+        try {
+            const res = await fetch('http://localhost:3000/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transaction)
+            });
+            const newTransaction = await res.json();
+            console.log('✅ Transacción agregada desde servidor:', newTransaction);
+            this.transactions.push(newTransaction);
+            this.updateUI();
+        } catch (err) {
+            console.error('❌ Error al agregar transacción:', err);
+            this.showToast('Error al agregar transacción', 'error');
+        }
+    }
+
+    async updateTransaction(transaction) {
+        try {
+            await fetch(`http://localhost:3000/transactions/${transaction.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transaction)
+            });
+            const index = this.transactions.findIndex(t => t.id === transaction.id);
+            if (index !== -1) this.transactions[index] = transaction;
+            console.log('✅ Transacción actualizada localmente:', transaction);
+            this.updateUI();
+        } catch (err) {
+            console.error('❌ Error al actualizar transacción:', err);
+            this.showToast('Error al actualizar transacción', 'error');
+        }
+    }
+
+    async deleteTransaction(id) {
+        if (!confirm('¿Seguro que quieres eliminar esta transacción?')) return;
+        try {
+            await fetch(`http://localhost:3000/transactions/${id}`, { method: 'DELETE' });
+            this.transactions = this.transactions.filter(t => t.id !== id);
+            console.log('🗑️ Transacción eliminada:', id);
+            this.updateUI();
+            this.showToast('Transacción eliminada correctamente');
+        } catch (err) {
+            console.error('❌ Error al eliminar transacción:', err);
+            this.showToast('Error al eliminar transacción', 'error');
+        }
+    }
+
+    openEditModal(id) {
+        const transaction = this.transactions.find(t => t.id === id);
+        if (!transaction) return;
+
+        console.log('✏️ Abriendo modal para transacción:', transaction);
+
+        document.getElementById('edit-id').value = transaction.id;
+        document.getElementById('edit-type').value = transaction.type;
+        document.getElementById('edit-amount').value = transaction.amount;
+        document.getElementById('edit-description').value = transaction.description;
+        document.getElementById('edit-date').value = transaction.date;
+
+        const categorySelect = document.getElementById('edit-category');
+        categorySelect.innerHTML = '';
+        const categories = transaction.type === 'income'
+            ? ['Salario','Freelance','Inversiones','Regalos','Otros']
+            : ['Alimentación','Transporte','Vivienda','Entretenimiento','Salud','Educación','Otros'];
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            if (cat === transaction.category) option.selected = true;
+            categorySelect.appendChild(option);
         });
 
-        // Escuchar cambios de tema para refrescar gráficas (cuando exista la instancia)
-        document.addEventListener('theme-change', () => {
-            if (window.transactionManager && typeof window.transactionManager.updateCharts === 'function') {
-                window.transactionManager.updateCharts();
-            }
+        document.getElementById('modal-title').textContent = `Editar ${transaction.type === 'income' ? 'Ingreso' : 'Gasto'}`;
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    closeModal() { document.getElementById('edit-modal').style.display = 'none'; }
+
+    getFilteredTransactions() {
+        const typeFilter = document.getElementById('filter-type').value;
+        const categoryFilter = document.getElementById('filter-category').value;
+        const dateFilter = document.getElementById('filter-date').value;
+
+        return this.transactions.filter(t => {
+            if (typeFilter !== 'all' && t.type !== typeFilter) return false;
+            if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+            if (dateFilter && !t.date.startsWith(dateFilter)) return false;
+            return true;
         });
-    </script>
+    }
+
+    updateUI() {
+        this.updateSummary();
+        this.updateTransactionsTable();
+        this.updateCharts();
+        this.updateCategoryFilter();
+    }
+
+    updateSummary() {
+        const totalIncome = this.transactions.filter(t => t.type==='income').reduce((sum,t)=>sum+t.amount,0);
+        const totalExpenses = this.transactions.filter(t => t.type==='expense').reduce((sum,t)=>sum+t.amount,0);
+        const balance = totalIncome - totalExpenses;
+        document.getElementById('total-income').textContent = `$${totalIncome.toFixed(2)}`;
+        document.getElementById('total-expenses').textContent = `$${totalExpenses.toFixed(2)}`;
+        const balanceEl = document.getElementById('balance');
+        balanceEl.textContent = `$${balance.toFixed(2)}`;
+        balanceEl.className = `summary-amount ${balance >=0?'balance-positive':'balance-negative'}`;
+    }
+
+    updateTransactionsTable() {
+        const body = document.getElementById('transactions-body');
+        const filtered = this.getFilteredTransactions();
+        body.innerHTML = '';
+        if (!filtered.length) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;">No hay transacciones que coincidan con los filtros</td></tr>`;
+            return;
+        }
+        filtered.forEach(t => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${t.type==='income'?'💲 Ingreso':'💸 Gasto'}</td>
+                <td>${t.category}</td>
+                <td>${t.description||'-'}</td>
+                <td>${this.formatDate(t.date)}</td>
+                <td class="${t.type==='income'?'transaction-income':'transaction-expense'}">$${t.amount.toFixed(2)}</td>
+                <td>
+                    <button class="btn-icon btn-edit" data-id="${t.id}">⚙️</button>
+                    <button class="btn-icon btn-delete" data-id="${t.id}">🗑️</button>
+                </td>
+            `;
+            body.appendChild(row);
+        });
+        document.querySelectorAll('.btn-edit').forEach(btn=>btn.addEventListener('click',()=>this.openEditModal(parseInt(btn.dataset.id))));
+        document.querySelectorAll('.btn-delete').forEach(btn=>btn.addEventListener('click',()=>this.deleteTransaction(parseInt(btn.dataset.id))));
+    }
+
+    updateCategoryFilter() {
+        const filter = document.getElementById('filter-category');
+        const current = filter.value;
+        const categories = [...new Set(this.transactions.map(t=>t.category))].sort();
+        filter.innerHTML = '<option value="all">Todas</option>';
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            if (cat === current) option.selected = true;
+            filter.appendChild(option);
+        });
+    }
+
+    // ------------------ Gráficas ------------------
+    updateCharts() {
+        this.updateExpensesChart();
+        this.updateMonthlyChart();
+    }
+
+    updateExpensesChart() {
+        const ctx = document.getElementById('expenses-chart').getContext('2d');
+        const expensesByCategory = {};
+        this.transactions.filter(t => t.type==='expense').forEach(t => {
+            expensesByCategory[t.category] = (expensesByCategory[t.category]||0) + t.amount;
+        });
+
+        const categories = Object.keys(expensesByCategory);
+        const amounts = Object.values(expensesByCategory);
+
+        if (this.expensesChart) this.expensesChart.destroy();
+
+        const isDark = document.body.classList.contains('dark');
+        const backgroundColors = isDark
+            ? ['#FF8FA3', '#7BE3BF', '#7FB7FF', '#A08CFF', '#FFE59D', '#FFB39A', '#BFC6CC', '#FF9AD6']
+            : ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7CFFB2'];
+        const bgColors = backgroundColors.slice(0, categories.length);
+
+        const styles = getComputedStyle(document.body);
+        const textColor = styles.getPropertyValue('--text-color').trim() || (isDark ? '#E6EEF3' : '#333');
+        const tooltipBg = isDark ? '#0b1115' : '#fff';
+        const tooltipTitleColor = isDark ? '#E6EEF3' : '#111';
+
+        this.expensesChart = new Chart(ctx, {
+            type: 'pie',
+            data: { labels: categories, datasets:[{data:amounts, backgroundColor:bgColors,borderWidth:1}] },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom',labels:{color:textColor}}, tooltip:{backgroundColor:tooltipBg,titleColor:tooltipTitleColor,bodyColor:textColor}}}
+        });
+    }
+
+    updateMonthlyChart() {
+        const canvas = document.getElementById('monthly-chart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const monthlyData = {};
+        this.transactions.forEach(t=>{
+            const month = t.date.substring(0,7);
+            if (!monthlyData[month]) monthlyData[month] = {income:0, expenses:0};
+            if (t.type==='income') monthlyData[month].income+=t.amount;
+            else monthlyData[month].expenses+=t.amount;
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const incomeData = months.map(m=>monthlyData[m].income);
+        const expensesData = months.map(m=>monthlyData[m].expenses);
+
+        if (this.monthlyChart) this.monthlyChart.destroy();
+
+        if (!months.length){
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-color').trim()||'#333';
+            ctx.font='16px Poppins';
+            ctx.textAlign='center';
+            ctx.fillText('Agrega transacciones para ver la evolución mensual',canvas.width/2,canvas.height/2);
+            return;
+        }
+
+        const styles2 = getComputedStyle(document.body);
+        const textColor2 = styles2.getPropertyValue('--text-color').trim() || (document.body.classList.contains('dark') ? '#E6EEF3' : '#333');
+        const gridColor = styles2.getPropertyValue('--border-color').trim() || (document.body.classList.contains('dark') ? 'rgba(255,255,255,0.06)' : '#CED6E0');
+
+        this.monthlyChart = new Chart(ctx, {
+            type:'bar',
+            data:{
+                labels:months.map(m=>this.formatMonth(m)),
+                datasets:[
+                    {label:'Ingresos', data:incomeData, backgroundColor: document.body.classList.contains('dark')?'rgba(0,184,148,0.9)':'rgba(0,184,148,0.7)', borderColor:'rgba(0,184,148,1)', borderWidth:1},
+                    {label:'Gastos', data:expensesData, backgroundColor: document.body.classList.contains('dark')?'rgba(225,112,85,0.9)':'rgba(225,112,85,0.7)', borderColor:'rgba(225,112,85,1)', borderWidth:1}
+                ]
+            },
+            options:{responsive:true, maintainAspectRatio:false, scales:{x:{ticks:{color:textColor2},grid:{color:'transparent'}},y:{beginAtZero:true,ticks:{color:textColor2},grid:{color:gridColor}}}, plugins:{legend:{labels:{color:textColor2}}}}
+        });
+    }
+
+    // ------------------ Utilidades ------------------
+    formatDate(date){ return new Date(date).toLocaleDateString('es-ES'); }
+    formatMonth(m){ const [y,mon]=m.split('-'); const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${months[parseInt(mon)-1]} ${y}`; }
+    resetForm(formId){ document.getElementById(formId).reset(); this.setDefaultDates(); }
+    showToast(msg,type='success'){ const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type==='error'?'error':''}`; setTimeout(()=>t.classList.add('show'),100); setTimeout(()=>t.classList.remove('show'),3000);}
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+    console.log('🚀 Iniciando TransactionManager...');
+    window.transactionManager = new TransactionManager();
+});
+</script>
+
+
+
     <script src="darkmode.js"></script>
     <script src="scriptlogin.js"></script>
 </body>

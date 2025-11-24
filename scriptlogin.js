@@ -127,6 +127,8 @@ async function login() {
   const data = await res.json();
 
   if (res.ok) {
+    console.log('ID usuario desde login:', data.id);
+    localStorage.setItem('currentUserId', data.id);
     Swal.fire({
       icon: 'success',
       title: 'Bienvenido',
@@ -152,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('login-form');
   const registerForm = document.getElementById('register-form');
   
-  // Event listeners para submit del formulario
   if (loginForm) {
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -167,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Habilitar Enter en los inputs del login
   const loginUserInput = document.getElementById('login-user');
   const loginPassInput = document.getElementById('login-pass');
   
@@ -191,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Habilitar Enter en los inputs del registro
   const regUserInput = document.getElementById('reg-user');
   const regEmailInput = document.getElementById('reg-email');
   const regPassInput = document.getElementById('reg-pass');
@@ -205,23 +204,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  if (regUserInput) {
-    regUserInput.addEventListener('keydown', handleRegisterEnter);
-  }
+  if (regUserInput) regUserInput.addEventListener('keydown', handleRegisterEnter);
+  if (regEmailInput) regEmailInput.addEventListener('keydown', handleRegisterEnter);
+  if (regPassInput) regPassInput.addEventListener('keydown', handleRegisterEnter);
+  if (regPass2Input) regPass2Input.addEventListener('keydown', handleRegisterEnter);
   
-  if (regEmailInput) {
-    regEmailInput.addEventListener('keydown', handleRegisterEnter);
-  }
-  
-  if (regPassInput) {
-    regPassInput.addEventListener('keydown', handleRegisterEnter);
-  }
-  
-  if (regPass2Input) {
-    regPass2Input.addEventListener('keydown', handleRegisterEnter);
-  }
-  
-  // Logging para verificar que todo está cargado correctamente
   console.log('✅ Login script cargado correctamente');
   console.log('✅ Formularios inicializados');
   console.log('✅ Event listeners de Enter añadidos');
